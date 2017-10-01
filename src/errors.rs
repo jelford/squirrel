@@ -12,5 +12,7 @@ error_chain! {
         MpscRecv(::std::sync::mpsc::RecvError);
         StripPathPrefix(::std::path::StripPrefixError);
         GitIgnoreError(::ignore::Error);
+        GlobError(::glob::PatternError);
+        DatabaseError(::rusqlite::Error);
     }
 }

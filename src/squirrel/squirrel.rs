@@ -2,7 +2,6 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::fs::{self};
-use std::time::SystemTime;
 
 use super::event::*;
 use super::journal;
@@ -13,33 +12,29 @@ pub(crate) fn new<'a, Journal>(stash_path: &Path, journal: Journal) -> errors::R
     where Journal: journal::Journal {
     Ok(Squirrel {
         stash_path: stash_path.to_owned(),
-        next_event_id: 0,
         journal: journal,
     })
 }
 
 pub(crate) struct Squirrel<Journal> where Journal: super::journal::Journal  {
     stash_path: PathBuf,
-    next_event_id: EventId,
     journal: Journal,
 }
 
+fn snapshot_prefix() -> String {
+    use ::rand;
+    format!("{}{}{}{}{}{}{}{}", rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>())
+}
 
 impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
-
-    fn next_id(&mut self) -> EventId {
-        let res = self.next_event_id;
-        self.next_event_id += 1;
-        res
-    }
 
     fn journal(&mut self, event: Event) -> errors::Result<()> {
         self.journal.journal(event)?;
         Ok(())
     }
 
-    fn save_snapshot(&self, event_id: &EventId, source_file: &Path) -> errors::Result<PathBuf> {
-        let mut file_name = OsString::from(format!("{}-", event_id));
+    fn save_snapshot(&self, source_file: &Path) -> errors::Result<PathBuf> {
+        let mut file_name = OsString::from(format!("{}-", snapshot_prefix()));
         file_name.push(source_file.file_name().unwrap());
         let stashed_file_name = self.stash_path.join(&file_name);
         fs::copy(source_file, &stashed_file_name)?;
@@ -55,14 +50,12 @@ impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
             return Ok(());
         }
 
-        let event_id = self.next_id();
-        let snapshot_path = self.save_snapshot(&event_id, &path)?;
+        let snapshot_path = self.save_snapshot(&path)?;
         
         self.journal(
             new_event(
-                event_id, 
                 event_type,
-                SystemTime::now(), 
+                get_timestamp_now(), 
                 Some(snapshot_path), 
                 None, 
                 Some(path.to_owned())))?;
@@ -75,13 +68,11 @@ impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
     }
 
     fn on_remove(&mut self, path: &Path) -> errors::Result<()> {
-        let event_id = self.next_id();
 
         self.journal(
             new_event(
-                event_id,
                 EventType::Remove,
-                SystemTime::now(),
+                get_timestamp_now(),
                 None,
                 None,
                 Some(path.to_owned())
@@ -92,14 +83,12 @@ impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
 
     fn on_rename(&mut self, source: &Path, destination: &Path) -> errors::Result<()> {
 
-        let event_id = self.next_id();
-        let snapshot_path = self.save_snapshot(&event_id, &destination)?;
+        let snapshot_path = self.save_snapshot(&destination)?;
 
         self.journal(
             new_event(
-                event_id,
                 EventType::Rename,
-                SystemTime::now(),
+                get_timestamp_now(),
                 Some(snapshot_path),
                 Some(destination.to_owned()),
                 Some(source.to_owned())

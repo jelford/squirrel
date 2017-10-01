@@ -31,7 +31,7 @@ pub(crate) fn run_squirrel(watched_dir: &Path, stash_path: &Path) -> Result<()> 
     let mut watcher = watcher(change_event_tx, Duration::from_secs(2)).unwrap();
     watcher.watch(&"", RecursiveMode::Recursive).unwrap();
     ensure_dir(&stash_path)?;
-    let json_journal = journal::json_journal::new(&stash_path)?;
+    let json_journal = journal::sqlite_journal::new(&stash_path)?;
     let mut squirrel = squirrel::new(&stash_path, json_journal)?;
 
     let path_filter = path_filter::new(&watched_dir, &stash_path)?;

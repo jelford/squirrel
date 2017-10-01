@@ -49,6 +49,18 @@ impl PathFilter {
     fn is_stash_path(&self, path: &Path) -> bool {
         path.starts_with(&self.stash_path)
     }
+
+    fn is_dotted(&self, path: &Path) -> bool {
+        for c in path.components() {
+            match c {
+                Component::Normal(ref path_part) => 
+                    if path_part.to_string_lossy().starts_with(".") { return true; },
+                _ => {}
+            };
+        }
+
+        false
+    }
  
     pub fn allow(&self, path: &Path) -> errors::Result<bool> {
         let path = path.canonicalize();
@@ -61,10 +73,13 @@ impl PathFilter {
                 return Ok(false);
             }
 
-            if self.ignored(&path)? {
+            if self.is_dotted(&path) {
                 return Ok(false);
             }
 
+            if self.ignored(&path)? {
+                return Ok(false);
+            }
 
             return Ok(true);
         }

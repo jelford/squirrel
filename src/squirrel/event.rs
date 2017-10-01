@@ -1,7 +1,12 @@
 
+use std::result::Result as StdResult;
 use std::path::{PathBuf, Path};
-use std::time::SystemTime;
+use std::fmt::{Display, Error as FmtError, Formatter, Result as FmtResult};
+
 use notify::DebouncedEvent;
+use chrono::prelude::{DateTime, Utc, TimeZone};
+
+use errors::*;
 
 #[derive(Debug)]
 pub(crate) enum FileEvent {
@@ -27,13 +32,41 @@ impl From<DebouncedEvent> for FileEvent {
             DebouncedEvent::Write(p) => FileEvent::Write(p),
             DebouncedEvent::Create(p) => FileEvent::Create(p),
             DebouncedEvent::Rename(p1, p2) => FileEvent::Rename(p1, p2),
-            DebouncedEvent::Remove(p) => FileEvent::Remove(p),
-            _ => FileEvent::UnknownEvent,
+            DebouncedEvent::Remove(p) | DebouncedEvent::NoticeRemove(p) => FileEvent::Remove(p),
+            x => {
+                println!("I don't know about: {:?}", x);
+                FileEvent::UnknownEvent
+            }
         }
     }
 }
 
-pub(crate) type EventId = u64;
+pub(crate) type EventId = i64;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct EventTime(DateTime<Utc>);
+
+impl EventTime {
+    pub(crate) fn rfc3339(&self) -> String {
+        self.0.to_rfc3339()
+    }
+
+    pub(crate) fn from_date_time<Tz>(from: DateTime<Tz>) -> EventTime
+        where Tz: TimeZone  {
+        let utc_datetime = from.with_timezone(&Utc);
+        EventTime(utc_datetime)
+    }
+}
+
+impl Display for EventTime {
+    fn fmt(&self, mut f: &mut Formatter) -> FmtResult {
+        self.0.to_rfc3339().fmt(&mut f)
+    }
+}
+
+pub(crate) fn get_timestamp_now() -> EventTime {
+    EventTime(Utc::now())
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) enum EventType {
@@ -43,24 +76,51 @@ pub(crate) enum EventType {
     Rename,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Event {
-    event_id: EventId,
-    event_type: EventType,
-    timestamp: SystemTime,
-    snapshot: Option<PathBuf>,
-    before_path: Option<PathBuf>,
-    after_path: Option<PathBuf>
+impl EventType {
+    pub(crate) fn from_str(s: &str) -> Result<EventType> {
+        if s == "Create" {
+            Ok(EventType::Create)
+        } else if s == "Remove" {
+            Ok(EventType::Remove)
+        } else if s == "Update" {
+            Ok(EventType::Update)
+        } else if s == "Rename" {
+            Ok(EventType::Rename)
+        } else {
+            Err(format!("unable to convert '{}' to EventType", s).into())
+        }
+    }
 }
 
-pub(crate) fn new_event(event_id: EventId,
+impl Display for EventType {
+    fn fmt(&self, f: &mut Formatter) -> StdResult<(), FmtError> {    
+        match self {
+            &EventType::Create => f.write_str(&"Create"),
+            &EventType::Remove => f.write_str(&"Remove"),
+            &EventType::Update => f.write_str(&"Update"),
+            &EventType::Rename => f.write_str(&"Rename"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct Event {
+    pub event_id: Option<EventId>,
+    pub event_type: EventType,
+    pub timestamp: EventTime,
+    pub snapshot: Option<PathBuf>,
+    pub before_path: Option<PathBuf>,
+    pub after_path: Option<PathBuf>
+}
+
+pub(crate) fn new_event(
     event_type: EventType,
-    timestamp: SystemTime,
+    timestamp: EventTime,
     snapshot: Option<PathBuf>,
     after_path: Option<PathBuf>,
     before_path: Option<PathBuf>) -> Event {
         Event {
-            event_id: event_id ,
+            event_id: None ,
             event_type: event_type ,
             timestamp: timestamp ,
             snapshot: snapshot ,
