@@ -10,7 +10,6 @@ extern crate futures;
 extern crate ignore;
 extern crate notify;
 extern crate rand;
-extern crate ring;
 extern crate rusqlite;
 
 use std::path::PathBuf;
