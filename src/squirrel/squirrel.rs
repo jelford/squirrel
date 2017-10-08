@@ -110,13 +110,9 @@ where
         Ok(())
     }
 
-    pub(crate) fn dispatch_event<E>(&mut self, event: E) -> errors::Result<()>
-    where
-        FileEvent: From<E>,
-    {
+    pub(crate) fn dispatch_event(&mut self, event: FileEvent) -> errors::Result<()> {
 
-        let event = FileEvent::from(event);
-        println!("<<< received : {:?}", event);
+        debug!("handling event : {:?}", event);
 
         match event {
             FileEvent::Write(ref path) => self.on_write(path)?,

@@ -14,5 +14,6 @@ error_chain! {
         GitIgnoreError(::ignore::Error);
         GlobError(::glob::PatternError);
         DatabaseError(::rusqlite::Error);
+        LoggingInitializationError(::log::SetLoggerError);
     }
 }

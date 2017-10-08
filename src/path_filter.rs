@@ -77,18 +77,22 @@ impl PathFilter {
 
     pub fn allow(&self, path: &Path) -> errors::Result<bool> {
         if !self.is_in_scope(&path) {
+            debug!("ignoring {:?} because not in scope", path);
             return Ok(false);
         }
 
         if self.is_stash_path(&path) {
+            debug!("ignoring {:?} because within the stash", path);
             return Ok(false);
         }
 
         if self.is_dotted(&path) {
+            debug!("ignoring {:?} because it's a dotted file", path);
             return Ok(false);
         }
 
         if self.ignored(&path)? {
+            debug!("ignoring {:?} because ignored by .gitignore", path);
             return Ok(false);
         }
 

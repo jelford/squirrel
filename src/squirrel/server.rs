@@ -74,7 +74,7 @@ fn to_squirrel_event(notify_event: DebouncedEvent) -> event::FileEvent {
         DebouncedEvent::Rename(p1, p2) => event::FileEvent::Rename(p1, p2),
         DebouncedEvent::Remove(p) => event::FileEvent::Remove(p),
         x => {
-            println!("I don't know about: {:?}", x);
+            trace!("Received unhandled event from notify layer: {:?}", x);
             event::FileEvent::UnknownEvent
         }
     }
