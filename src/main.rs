@@ -26,10 +26,10 @@ mod path_filter;
 quick_main!(run);
 
 fn run() -> Result<()> {
-    let matches = clap_app!(myapp =>
-        (version: "0.1.0")
-        (author: "James Elford <james.p.elford@gmail.com>")
-        (about: "Keep track of source files while you work")
+    let matches = clap_app!(code_squirrel =>
+        (version: crate_version!())
+        (author: crate_authors!("\n"))
+        (about: crate_description!())
         (@subcommand daemon =>
             (about: "run the daemon to monitor a directory")
         )
@@ -56,6 +56,8 @@ fn run() -> Result<()> {
         return squirrel::list_snapshots(&stash_path, glob);
     }
 
-    Ok(())
+    println!("{}", matches.usage());
+
+    Err(ErrorKind::NoCommand.into())
 
 }

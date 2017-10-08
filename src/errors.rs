@@ -5,6 +5,10 @@ error_chain! {
             description("unable to journal an event")
             display("there was a problem recoring an event in the journal: {}", detail)
         }
+        NoCommand {
+            description("no command was specified")
+            display("must specify a command")
+        }
     }
     foreign_links {
         Fmt(::std::fmt::Error);
