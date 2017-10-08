@@ -3,7 +3,6 @@ use std::result::Result as StdResult;
 use std::path::{PathBuf, Path};
 use std::fmt::{Display, Error as FmtError, Formatter, Result as FmtResult};
 
-use notify::DebouncedEvent;
 use chrono::prelude::{DateTime, Utc, TimeZone};
 
 use errors::*;
@@ -20,30 +19,18 @@ pub(crate) enum FileEvent {
 impl FileEvent {
     pub(crate) fn path(&self) -> Option<&Path> {
         match self {
-            &FileEvent::Write(ref p) | &FileEvent::Create(ref p) | &FileEvent::Rename(ref p, _) | &FileEvent::Remove(ref p) => Some(p),
-            &FileEvent::UnknownEvent => None
-        }
-    }
-}
-
-impl From<DebouncedEvent> for FileEvent {
-    fn from(notify_event: DebouncedEvent) -> Self {
-        match notify_event {
-            DebouncedEvent::Write(p) => FileEvent::Write(p),
-            DebouncedEvent::Create(p) => FileEvent::Create(p),
-            DebouncedEvent::Rename(p1, p2) => FileEvent::Rename(p1, p2),
-            DebouncedEvent::Remove(p) | DebouncedEvent::NoticeRemove(p) => FileEvent::Remove(p),
-            x => {
-                println!("I don't know about: {:?}", x);
-                FileEvent::UnknownEvent
-            }
+            &FileEvent::Write(ref p) |
+            &FileEvent::Create(ref p) |
+            &FileEvent::Rename(ref p, _) |
+            &FileEvent::Remove(ref p) => Some(p),
+            &FileEvent::UnknownEvent => None,
         }
     }
 }
 
 pub(crate) type EventId = i64;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 pub(crate) struct EventTime(DateTime<Utc>);
 
 impl EventTime {
@@ -52,7 +39,9 @@ impl EventTime {
     }
 
     pub(crate) fn from_date_time<Tz>(from: DateTime<Tz>) -> EventTime
-        where Tz: TimeZone  {
+    where
+        Tz: TimeZone,
+    {
         let utc_datetime = from.with_timezone(&Utc);
         EventTime(utc_datetime)
     }
@@ -68,7 +57,7 @@ pub(crate) fn get_timestamp_now() -> EventTime {
     EventTime(Utc::now())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub(crate) enum EventType {
     Create,
     Remove,
@@ -93,7 +82,7 @@ impl EventType {
 }
 
 impl Display for EventType {
-    fn fmt(&self, f: &mut Formatter) -> StdResult<(), FmtError> {    
+    fn fmt(&self, f: &mut Formatter) -> StdResult<(), FmtError> {
         match self {
             &EventType::Create => f.write_str(&"Create"),
             &EventType::Remove => f.write_str(&"Remove"),
@@ -103,14 +92,14 @@ impl Display for EventType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub(crate) struct Event {
     pub event_id: Option<EventId>,
     pub event_type: EventType,
     pub timestamp: EventTime,
     pub snapshot: Option<PathBuf>,
     pub before_path: Option<PathBuf>,
-    pub after_path: Option<PathBuf>
+    pub after_path: Option<PathBuf>,
 }
 
 pub(crate) fn new_event(
@@ -118,13 +107,14 @@ pub(crate) fn new_event(
     timestamp: EventTime,
     snapshot: Option<PathBuf>,
     after_path: Option<PathBuf>,
-    before_path: Option<PathBuf>) -> Event {
-        Event {
-            event_id: None ,
-            event_type: event_type ,
-            timestamp: timestamp ,
-            snapshot: snapshot ,
-            before_path: before_path,
-            after_path: after_path 
-        }
+    before_path: Option<PathBuf>,
+) -> Event {
+    Event {
+        event_id: None,
+        event_type: event_type,
+        timestamp: timestamp,
+        snapshot: snapshot,
+        before_path: before_path,
+        after_path: after_path,
+    }
 }

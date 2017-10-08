@@ -1,33 +1,49 @@
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::fs::{self};
+use std::fs;
+
+use rand::{self, Rng};
 
 use super::event::*;
 use super::journal;
 use errors;
 
 
-pub(crate) fn new<'a, Journal>(stash_path: &Path, journal: Journal) -> errors::Result<Squirrel<Journal>> 
-    where Journal: journal::Journal {
+pub(crate) fn new<'a, Journal>(
+    stash_path: &Path,
+    journal: Journal,
+) -> errors::Result<Squirrel<Journal>>
+where
+    Journal: journal::Journal,
+{
     Ok(Squirrel {
         stash_path: stash_path.to_owned(),
         journal: journal,
     })
 }
 
-pub(crate) struct Squirrel<Journal> where Journal: super::journal::Journal  {
+pub(crate) struct Squirrel<Journal>
+where
+    Journal: super::journal::Journal,
+{
     stash_path: PathBuf,
     journal: Journal,
 }
 
 fn snapshot_prefix() -> String {
-    use ::rand;
-    format!("{}{}{}{}{}{}{}{}", rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>())
+    let mut rng = rand::thread_rng();
+
+    rng
+        .gen_ascii_chars()
+        .take(21) // 6 bits per char * 21 ~= 122 bits of random, same as a GUIDv4
+        .collect()
 }
 
-impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
-
+impl<Journal> Squirrel<Journal>
+where
+    Journal: super::journal::Journal,
+{
     fn journal(&mut self, event: Event) -> errors::Result<()> {
         self.journal.journal(event)?;
         Ok(())
@@ -39,8 +55,8 @@ impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
         let stashed_file_name = self.stash_path.join(&file_name);
         fs::copy(source_file, &stashed_file_name)?;
         Ok(PathBuf::from(&file_name))
-    } 
-    
+    }
+
     fn on_write(&mut self, path: &Path) -> errors::Result<()> {
         self.record_write_or_create(&path, EventType::Update)
     }
@@ -51,14 +67,14 @@ impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
         }
 
         let snapshot_path = self.save_snapshot(&path)?;
-        
-        self.journal(
-            new_event(
-                event_type,
-                get_timestamp_now(), 
-                Some(snapshot_path), 
-                None, 
-                Some(path.to_owned())))?;
+
+        self.journal(new_event(
+            event_type,
+            get_timestamp_now(),
+            Some(snapshot_path),
+            None,
+            Some(path.to_owned()),
+        ))?;
 
         Ok(())
     }
@@ -69,15 +85,13 @@ impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
 
     fn on_remove(&mut self, path: &Path) -> errors::Result<()> {
 
-        self.journal(
-            new_event(
-                EventType::Remove,
-                get_timestamp_now(),
-                None,
-                None,
-                Some(path.to_owned())
-            )
-        )?;
+        self.journal(new_event(
+            EventType::Remove,
+            get_timestamp_now(),
+            None,
+            None,
+            Some(path.to_owned()),
+        ))?;
         Ok(())
     }
 
@@ -85,25 +99,24 @@ impl <Journal> Squirrel<Journal> where Journal: super::journal::Journal {
 
         let snapshot_path = self.save_snapshot(&destination)?;
 
-        self.journal(
-            new_event(
-                EventType::Rename,
-                get_timestamp_now(),
-                Some(snapshot_path),
-                Some(destination.to_owned()),
-                Some(source.to_owned())
-            )
-        )?;
+        self.journal(new_event(
+            EventType::Rename,
+            get_timestamp_now(),
+            Some(snapshot_path),
+            Some(destination.to_owned()),
+            Some(source.to_owned()),
+        ))?;
 
         Ok(())
     }
 
     pub(crate) fn dispatch_event<E>(&mut self, event: E) -> errors::Result<()>
-        where FileEvent: From<E> {
+    where
+        FileEvent: From<E>,
+    {
 
         let event = FileEvent::from(event);
         println!("<<< received : {:?}", event);
-
 
         match event {
             FileEvent::Write(ref path) => self.on_write(path)?,

@@ -10,13 +10,13 @@ pub(crate) trait Journal {
 }
 
 pub(crate) trait PagedJournalQuery {
-    type ResultIterator: Iterator<Item=Result<Event>>;
+    type ResultIterator: Iterator<Item = Result<Event>>;
 
     fn next_page(&mut self) -> Result<Self::ResultIterator>;
 }
 
-pub (crate) trait JournalReader<'a> {
-    type BackwardsIterator : PagedJournalQuery;
+pub(crate) trait JournalReader<'a> {
+    type BackwardsIterator: PagedJournalQuery;
 
     fn backwards(&'a self) -> Result<Self::BackwardsIterator>;
 }

@@ -12,15 +12,10 @@ extern crate notify;
 extern crate rand;
 extern crate ring;
 extern crate rusqlite;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-extern crate tempdir;
 
 use std::path::PathBuf;
 
-mod errors; 
+mod errors;
 use errors::*;
 mod squirrel;
 
@@ -42,11 +37,13 @@ fn run() -> Result<()> {
         )
     ).get_matches();
 
-    let watched_dir = PathBuf::from(".").canonicalize().expect("Unable to determine the path to the current directory");
+    let watched_dir = PathBuf::from(".").canonicalize().expect(
+        "Unable to determine the path to the current directory",
+    );
     let stash_path = watched_dir.join(".backup");
 
     if let Some(_) = matches.subcommand_matches("daemon") {
-        return squirrel::run_squirrel(&watched_dir, &stash_path)
+        return squirrel::run_squirrel(&watched_dir, &stash_path);
     }
 
     if let Some(matches) = matches.subcommand_matches("show") {

@@ -1,5 +1,5 @@
 use std::path::Path;
-use glob::{Pattern};
+use glob::Pattern;
 
 use super::event::Event;
 use super::journal::{JournalReader, sqlite_journal, PagedJournalQuery};
@@ -29,11 +29,16 @@ fn match_name(glob: &Pattern, event: &Event) -> Option<String> {
     };
 
     a_path.map(|p| {
-        p.file_name().map(|p| String::from(p.to_string_lossy())).unwrap_or(String::from("<unknown>"))
+        p.file_name()
+            .map(|p| String::from(p.to_string_lossy()))
+            .unwrap_or(String::from("<unknown>"))
     })
 }
 
-impl <'a, J> SnapshotViewer<J> where J : JournalReader<'a> {
+impl<'a, J> SnapshotViewer<J>
+where
+    J: JournalReader<'a>,
+{
     fn show_relevant_snapshots(&'a self) -> Result<()> {
         let g = &self.glob;
         println!("Id\tFile Name\tTimestamp\tUpdate Type");
@@ -43,11 +48,13 @@ impl <'a, J> SnapshotViewer<J> where J : JournalReader<'a> {
             let event = event?;
             if let Some(matched_name) = match_name(&g, &event) {
                 let timestamp = event.timestamp;
-                println!("{}\t{}\t{}\t{}\t", 
-                    event.event_id.unwrap(), 
-                    matched_name, 
-                    &timestamp, 
-                    event.event_type);
+                println!(
+                    "{}\t{}\t{}\t{}\t",
+                    event.event_id.unwrap(),
+                    matched_name,
+                    &timestamp,
+                    event.event_type
+                );
             }
         }
         Ok(())

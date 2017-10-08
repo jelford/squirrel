@@ -1,13 +1,14 @@
 
 use std::io;
 use std::fs;
-use notify::{watcher, RecursiveMode, Watcher};
 use std::time::Duration;
 use std::sync::mpsc::channel as sync_channel;
 use std::path::Path;
-use path_filter;
+
+use notify::{watcher, RecursiveMode, Watcher, DebouncedEvent};
 
 use errors::*;
+use path_filter;
 
 use super::squirrel;
 use super::event;
@@ -26,27 +27,55 @@ fn ensure_dir(path: &Path) -> Result<()> {
 }
 
 pub(crate) fn run_squirrel(watched_dir: &Path, stash_path: &Path) -> Result<()> {
-    let (change_event_tx, change_event_rx) = sync_channel();
-
-    let mut watcher = watcher(change_event_tx, Duration::from_secs(2)).unwrap();
-    watcher.watch(&"", RecursiveMode::Recursive).unwrap();
     ensure_dir(&stash_path)?;
     let json_journal = journal::sqlite_journal::new(&stash_path)?;
     let mut squirrel = squirrel::new(&stash_path, json_journal)?;
 
     let path_filter = path_filter::new(&watched_dir, &stash_path)?;
 
-    loop {
-        let event = change_event_rx.recv()?;
-        let event = event::FileEvent::from(event);
+    let (change_event_tx, change_event_rx) = sync_channel();
 
+    let mut watcher = watcher(change_event_tx, Duration::from_secs(1)).unwrap();
+    watcher
+        .watch(&watched_dir, RecursiveMode::Recursive)
+        .unwrap();
+
+    for top_level in fs::read_dir(watched_dir)? {
+        let top_level = top_level?;
+
+        let watched = top_level.path();
+        if watched.is_dir() && !path_filter.allow(&watched)? {
+            watcher.unwatch(&watched).expect(&format!("Unable to unwatch {:?}", watched));
+        }
+    }
+
+    loop {
+        let e = change_event_rx.recv()?;
+        let event = to_squirrel_event(e);
         let should_fire = {
             let p = event.path();
-            p.map(|p| path_filter.allow(p).unwrap_or(true)).unwrap_or(true)
+            match p {
+                Some(p) => path_filter.allow(p)?,
+                _ => true,
+            }
         };
         if should_fire {
             squirrel.dispatch_event(event)?;
         }
 
+
+    }
+}
+
+fn to_squirrel_event(notify_event: DebouncedEvent) -> event::FileEvent {
+    match notify_event {
+        DebouncedEvent::Write(p) => event::FileEvent::Write(p),
+        DebouncedEvent::Create(p) => event::FileEvent::Create(p),
+        DebouncedEvent::Rename(p1, p2) => event::FileEvent::Rename(p1, p2),
+        DebouncedEvent::Remove(p) => event::FileEvent::Remove(p),
+        x => {
+            println!("I don't know about: {:?}", x);
+            event::FileEvent::UnknownEvent
+        }
     }
 }
