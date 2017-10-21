@@ -19,11 +19,15 @@ pub(crate) struct PathFilter {
 
 impl PathFilter {
     fn is_in_scope(&self, path: &Path) -> bool {
-        path.is_absolute() && path.starts_with(&self.base_path)
+        (!path.is_absolute()) || path.starts_with(&self.base_path)
     }
 
     fn ignored(&self, path: &Path) -> errors::Result<bool> {
-        let rel_path = path.strip_prefix(&self.base_path)?;
+        let rel_path = if path.is_absolute() {
+            path.strip_prefix(&self.base_path)?
+        } else {
+            path
+        };
 
         let mut builder = GitignoreBuilder::new(&self.base_path);
         builder.add(".gitignore");

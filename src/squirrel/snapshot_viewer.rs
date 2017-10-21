@@ -41,22 +41,36 @@ where
 {
     fn show_relevant_snapshots(&'a self) -> Result<()> {
         let g = &self.glob;
-        println!("Id\tFile Name\tTimestamp\tUpdate Type");
+        println!(
+            "{: <5}{: <30}{: <30}{: <13}{}",
+            "Id",
+            "File Name",
+            "Timestamp",
+            "Update Type",
+            "Snapshot"
+        );
 
         let mut back = self.journal.backwards()?;
         for event in back.next_page()? {
             let event = event?;
             if let Some(matched_name) = match_name(&g, &event) {
-                let timestamp = event.timestamp;
+                let timestamp = format!("{}", event.timestamp);
+                let update_type = format!("{}", event.event_type);
+                let snapshot_path = event
+                    .snapshot
+                    .map(|p| String::from(p.to_string_lossy()))
+                    .unwrap_or(String::new());
                 println!(
-                    "{}\t{}\t{}\t{}\t",
+                    "{: <5}{: <30}{: <30}{: <13}{}",
                     event.event_id.unwrap(),
                     matched_name,
-                    &timestamp,
-                    event.event_type
+                    timestamp,
+                    update_type,
+                    snapshot_path
                 );
             }
         }
         Ok(())
+
     }
 }

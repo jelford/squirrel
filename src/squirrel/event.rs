@@ -48,8 +48,8 @@ impl EventTime {
 }
 
 impl Display for EventTime {
-    fn fmt(&self, mut f: &mut Formatter) -> FmtResult {
-        self.0.to_rfc3339().fmt(&mut f)
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        self.0.format("%Y-%m-%d %H:%M").fmt(f)
     }
 }
 
@@ -84,10 +84,10 @@ impl EventType {
 impl Display for EventType {
     fn fmt(&self, f: &mut Formatter) -> StdResult<(), FmtError> {
         match self {
-            &EventType::Create => f.write_str(&"Create"),
-            &EventType::Remove => f.write_str(&"Remove"),
-            &EventType::Update => f.write_str(&"Update"),
-            &EventType::Rename => f.write_str(&"Rename"),
+            &EventType::Create => write!(f, "Create"),
+            &EventType::Remove => write!(f, "Remove"),
+            &EventType::Update => write!(f, "Update"),
+            &EventType::Rename => write!(f, "Rename"),
         }
     }
 }

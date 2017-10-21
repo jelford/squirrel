@@ -45,7 +45,7 @@ impl<'a> super::Journal for SqliteJournal {
 
         use std::os::raw::c_int;
         let _: Result<c_int> = self.db_connection.execute(
-                    &"INSERT INTO Events (event_type, timestamp, snapshot, before_path, after_path) VALUES (?, ?, ?, ?, ?)", 
+                    &"INSERT INTO Events (event_type, timestamp, snapshot, before_path, after_path) VALUES (?, ?, ?, ?, ?)",
                     &[&event_type, &timestamp, &snapshot, &before_path, &after_path])
                     .map_err(|e: RusqlError| {
                         let provider_msg = format!("{}", e);
@@ -122,16 +122,16 @@ impl<'a> super::JournalReader<'a> for SqliteJournal {
     type BackwardsIterator = Statement<'a>;
     fn backwards(&'a self) -> Result<Self::BackwardsIterator> {
         let stmt = self.db_connection.prepare(
-            "SELECT 
-                    event_id, 
-                    event_type, 
-                    timestamp, 
-                    snapshot, 
-                    before_path, 
-                    after_path 
-                FROM 
-                    Events 
-                ORDER BY 
+            "SELECT
+                    event_id,
+                    event_type,
+                    timestamp,
+                    snapshot,
+                    before_path,
+                    after_path
+                FROM
+                    Events
+                ORDER BY
                     timestamp DESC",
         )?;
         Ok(stmt)

@@ -3,7 +3,7 @@ use std::io;
 use std::fs;
 use std::time::Duration;
 use std::sync::mpsc::channel as sync_channel;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use notify::{watcher, RecursiveMode, Watcher, DebouncedEvent};
 
@@ -45,13 +45,16 @@ pub(crate) fn run_squirrel(watched_dir: &Path, stash_path: &Path) -> Result<()> 
 
         let watched = top_level.path();
         if watched.is_dir() && !path_filter.allow(&watched)? {
-            watcher.unwatch(&watched).expect(&format!("Unable to unwatch {:?}", watched));
+            watcher.unwatch(&watched).expect(&format!(
+                "Unable to unwatch {:?}",
+                watched
+            ));
         }
     }
 
     loop {
         let e = change_event_rx.recv()?;
-        let event = to_squirrel_event(e);
+        let event = to_squirrel_event(e, &watched_dir)?;
         let should_fire = {
             let p = event.path();
             match p {
@@ -62,20 +65,28 @@ pub(crate) fn run_squirrel(watched_dir: &Path, stash_path: &Path) -> Result<()> 
         if should_fire {
             squirrel.dispatch_event(event)?;
         }
-
-
     }
 }
 
-fn to_squirrel_event(notify_event: DebouncedEvent) -> event::FileEvent {
-    match notify_event {
-        DebouncedEvent::Write(p) => event::FileEvent::Write(p),
-        DebouncedEvent::Create(p) => event::FileEvent::Create(p),
-        DebouncedEvent::Rename(p1, p2) => event::FileEvent::Rename(p1, p2),
-        DebouncedEvent::Remove(p) => event::FileEvent::Remove(p),
+fn relativize<'a>(base_path: &'a Path, abs_path: &'a Path) -> Result<PathBuf> {
+    abs_path
+        .strip_prefix(base_path)
+        .chain_err(|| "o shit")
+        .map(|p| p.to_owned())
+}
+
+fn to_squirrel_event(notify_event: DebouncedEvent, base_path: &Path) -> Result<event::FileEvent> {
+
+    Ok(match notify_event {
+        DebouncedEvent::Write(p) => event::FileEvent::Write(relativize(&base_path, &p)?),
+        DebouncedEvent::Create(p) => event::FileEvent::Create(relativize(&base_path, &p)?),
+        DebouncedEvent::Rename(p1, p2) => {
+            event::FileEvent::Rename(relativize(&base_path, &p1)?, relativize(&base_path, &p2)?)
+        }
+        DebouncedEvent::Remove(p) => event::FileEvent::Remove(relativize(&base_path, &p)?),
         x => {
             trace!("Received unhandled event from notify layer: {:?}", x);
             event::FileEvent::UnknownEvent
         }
-    }
+    })
 }
