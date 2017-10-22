@@ -2,6 +2,7 @@
 local history for repos
 
 ![Project is an early alpha](https://img.shields.io/badge/project_readiness-alpha-red.svg)
+![build status](https://img.shields.io/travis/jelford/squirrel.svg)
 
 ## The problem
 
