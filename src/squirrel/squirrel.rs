@@ -66,12 +66,15 @@ where
             return Ok(());
         }
 
-        let snapshot_path = self.save_snapshot(&path)?;
+        let snapshot_path = self.save_snapshot(&path).ok();
+        if snapshot_path.is_none() {
+            debug!("Unable to take snapshot of {}", path.to_string_lossy());
+        }
 
         self.journal(new_event(
             event_type,
             get_timestamp_now(),
-            Some(snapshot_path),
+            snapshot_path,
             None,
             Some(path.to_owned()),
         ))?;
@@ -97,12 +100,18 @@ where
 
     fn on_rename(&mut self, source: &Path, destination: &Path) -> errors::Result<()> {
 
-        let snapshot_path = self.save_snapshot(&destination)?;
+        let destinatin_snap : errors::Result<PathBuf> = self.save_snapshot(&destination);
+        let success_snap = destinatin_snap.or_else(|_| self.save_snapshot(&source));
+        
+        let snapshot_path = success_snap.ok();
+        if snapshot_path.is_none() {
+            debug!("Unable to take snapshot after rename {} -> {}", source.to_string_lossy(), destination.to_string_lossy());
+        }
 
         self.journal(new_event(
             EventType::Rename,
             get_timestamp_now(),
-            Some(snapshot_path),
+            snapshot_path,
             Some(destination.to_owned()),
             Some(source.to_owned()),
         ))?;
