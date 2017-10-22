@@ -1,5 +1,5 @@
 [package]
-name = "code-squirrel"
+name = "squirrel"
 version = "0.1.0"
 authors = ["James Elford <james.p.elford@gmail.com>"]
 
