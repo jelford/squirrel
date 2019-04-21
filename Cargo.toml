@@ -1,6 +1,6 @@
 [package]
 name = "squirrel"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["James Elford <james.p.elford@gmail.com>"]
 
 [dependencies]
